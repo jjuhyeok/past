@@ -1,0 +1,10 @@
+02-14
+ 1. preprocessing : 년/월/일/시간
+ 2. EDA : 주기 발견
+   -> 주기 활용 고민, 이상치 처리 생각(ex, 3sigma)
+ 3. F.E : kalman, moving average, log 사용해보았는데 MAE 값 차이 X
+   -> LG 공정에서 item별 측정오차나 이런걸 생각해서 분산을 줄여주려고 그때 사용했었는데 결과가 좋았어서 먼저 사용해보았음.
+
+02-15
+ 1. preprocessing : train 07시 이후를 다 날리고 07시 이전시간을 평균이나 합같은 통계량으로 활용해보자,
+   -> 왜? : 07시가 아닌 시간대의 target은 interpolate로 보간되었기 때문
