@@ -17,3 +17,7 @@
  6. 3시그마 + 피처 10개 + NO F.E + pycaret best_model(cat) no tune -> 6.64, gbr no tune -> 6.1, tune ->7.48, et(notune) ->6.63(train, test 7시만 필터링)
  7. 6에서 했던 피처 + catboost_optuna -> 4.6 나오는데 왜 실제로는 7이 나오지?
  8. 6에서 했던 피처 + optuna 구조 변경, score print추가로 5.5까지 뽑음
+
+02-16
+ 스무딩기법이니까, 7시만 데이터쓰는걸로 필터링 먼저 하지 말고 먼저 F.E한다음에 7시로 필터링을 해보자
+ + Tabnet을 써보자
