@@ -6,9 +6,11 @@ import seaborn as sns
 #from filterpy.kalman import KalmanFilter
 #from filterpy.common import Q_discrete_white_noise
 from tqdm import tqdm
+from sklearn.decomposition import PCA
+
 
 def preprocessing1(input_path):
-  data = pd.read_csv('\\Users\\ineeji\\Desktop\\새 폴더\\Ineeji\\datas\\데이터합본_파생변수 제거.csv')
+  data = pd.read_csv('/Users/jeonjuhyeog/Documents/past/datas/데이터합본_파생변수 제거.csv')
 
   data['year'] = data['Unnamed: 0'].apply(lambda x : x.split()[0].split('-')[0])
   data['month'] = data['Unnamed: 0'].apply(lambda x : x.split()[0].split('-')[1])
@@ -21,11 +23,17 @@ def preprocessing1(input_path):
   data['hour'] = data['hour'].astype('int')
   return data
 
+
+def drop_under_TI_360(data):
+   data = data[data['TI21022A(Catalyst T 1)'] > 370]
+   return data
+
 def Tree_sigma(df):
   lower_out = df['DSL D-95'].mean() - df['DSL D-95'].std()*3
-  upper_out = df['DSL D-95'].mean() + df['DSL D-95'].std()*3
+  #upper_out = df['DSL D-95'].mean() + df['DSL D-95'].std()*3
   df = df[(df['DSL D-95'] > lower_out) & (df['DSL D-95'] < upper_out)]
   return df
+
 
 def drop_List(df,train,test, n):
   dl = df.corr()['DSL D-95'].map(abs).sort_values(ascending = False)[10:]
@@ -54,6 +62,50 @@ def preprocessing3(train, test):
   #train_x.drop(['Unnamed: 0'],axis=1,inplace=True)
   #test_x.drop(['Unnamed: 0'],axis=1,inplace=True)
   return train_x, train_y, test_x, test_y
+
+
+def plus_PCA(train_X, test_X, threshold=0.8, n_components=1):
+    """
+    feature들 간의 상관관계가 높은 feature들을 뽑아서 PCA를 시도한 후, 결과로 나온 피처를 추가하는 함수
+    
+    Args:
+    train_X (pd.DataFrame): 학습 데이터셋 feature
+    test_X (pd.DataFrame): 테스트 데이터셋 feature
+    threshold (float): 상관계수 threshold (default: 0.8)
+    n_components (int): PCA 컴포넌트 수 (default: 1)
+    
+    Returns:
+    train_X_new (pd.DataFrame): 학습 데이터셋에 PCA 피처가 추가된 데이터프레임
+    test_X_new (pd.DataFrame): 테스트 데이터셋에 PCA 피처가 추가된 데이터프레임
+    """
+    # 상관계수 행렬 계산
+    corr_matrix = train_X.corr().abs()
+    
+    # threshold 이상의 상관계수를 가지는 feature들 추출
+    high_corr_features = set()
+    for i in range(len(corr_matrix.columns)):
+        for j in range(i):
+            if corr_matrix.iloc[i, j] >= threshold:
+                high_corr_features.add(corr_matrix.columns[i])
+                high_corr_features.add(corr_matrix.columns[j])
+    high_corr_features = list(high_corr_features)
+    
+    # 추출된 feature들을 이용해 PCA를 적용하여 새로운 feature 생성
+    pca = PCA(n_components=n_components)
+    pca.fit(train_X[high_corr_features])
+    pca_features_tr = pca.transform(train_X[high_corr_features])
+    pca_features_te = pca.transform(test_X[high_corr_features])
+    
+    # 새로운 feature 추가
+    train_X_new = train_X.copy()
+    test_X_new = test_X.copy()
+    for i in range(n_components):
+        train_X_new[f"PCA_{i+1}"] = pca_features_tr[:, i]
+        test_X_new[f"PCA_{i+1}"] = pca_features_te[:, i]
+    train_X_new.drop(high_corr_features, axis = 1, inplace=True)
+    test_X_new.drop(high_corr_features, axis = 1, inplace=True)
+    return train_X_new, test_X_new
+
 
 
 def filtering_7H(df):
