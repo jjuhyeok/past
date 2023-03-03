@@ -3,14 +3,14 @@ import numpy as np
 import glob
 import matplotlib.pyplot as plt
 import seaborn as sns
-#from filterpy.kalman import KalmanFilter
-#from filterpy.common import Q_discrete_white_noise
+from filterpy.kalman import KalmanFilter
+from filterpy.common import Q_discrete_white_noise
 from tqdm import tqdm
 from sklearn.decomposition import PCA
 
 
 def preprocessing1(input_path):
-  data = pd.read_csv('/Users/jeonjuhyeog/Documents/past/datas/데이터합본_파생변수 제거.csv')
+  data = pd.read_csv('\\Users\\ineeji\\Desktop\\past\\datas\\데이터합본_파생변수 제거.csv')
 
   data['year'] = data['Unnamed: 0'].apply(lambda x : x.split()[0].split('-')[0])
   data['month'] = data['Unnamed: 0'].apply(lambda x : x.split()[0].split('-')[1])
@@ -23,7 +23,6 @@ def preprocessing1(input_path):
   data['hour'] = data['hour'].astype('int')
   return data
 
-
 def drop_under_TI_360(data):
    data = data[data['TI21022A(Catalyst T 1)'] > 370]
    return data
@@ -31,7 +30,7 @@ def drop_under_TI_360(data):
 def Tree_sigma(df):
   lower_out = df['DSL D-95'].mean() - df['DSL D-95'].std()*3
   #upper_out = df['DSL D-95'].mean() + df['DSL D-95'].std()*3
-  df = df[(df['DSL D-95'] > lower_out) & (df['DSL D-95'] < upper_out)]
+  #df = df[(df['DSL D-95'] > lower_out) & (df['DSL D-95'] < upper_out)]
   return df
 
 
@@ -53,6 +52,87 @@ def preprocessing2(df):
   test = df[(df['year'] == 2019) |(df['year'] == 2020) | (df['year'] == 2021)]
   return train, test
 
+def drop_abnormal_region(df, target_col, std_threshold, rate_threshold):
+    """
+    데이터프레임에서 타겟 컬럼이 갑자기 떨어지는 구간을 찾아 해당 구간을 드랍시킵니다.
+    """
+    # 감소 구간 탐색을 위한 변수 초기화
+    is_dropping = False
+    start_idx = None
+    
+    # 드랍시킬 구간을 기록할 리스트 초기화
+    drop_regions = []
+    
+    # 타겟 컬럼의 표준편차와 변화량에 대한 기준값 계산
+    std = df[target_col].std()
+    threshold = std * std_threshold
+    #print(std,threshold)
+    #print(df.loc[330:340.:])
+    # 전체 데이터에 대해 반복
+    for i in range(5, len(df)):
+        # 이전 값과의 차이를 계산
+        diff = abs(df[target_col][i] - df[target_col][i-5])
+        
+        # 감소 구간 탐색
+        if diff / std >= rate_threshold:
+            start_idx = i - 5
+            #print("========================================")
+            #print(df[target_col][i],df[target_col][i-5], i, i - 5)
+            #print(diff, std, rate_threshold, start_idx,i-1)
+            #print("========================================")
+            for j in range(start_idx,i):
+                drop_regions.append(j)
+            #drop_regions.append((start_idx, i - 1))
+            #is_dropping = True
+        #elif is_dropping and diff / std > rate_threshold:
+            #print(start_idx,i-1)
+            #drop_regions.append((start_idx, i - 1))
+            #is_dropping = False
+    #print(drop_regions)
+    # 드랍시킬 구간을 데이터프레임에서 제거
+    print(drop_regions)
+    '''
+    for start, end in drop_regions:
+        df = df.drop(df.index[start:end+1])'''
+    df = df.drop(drop_regions, axis=0)
+    #print(df.loc[5:15.:])
+    return df
+
+'''
+def drop_abnormal_region(df, target_col, std_threshold, rate_threshold):
+    """
+    데이터프레임에서 타겟 컬럼이 갑자기 떨어지는 구간을 찾아 해당 구간을 드랍시킵니다.
+    """
+    # 감소 구간 탐색을 위한 변수 초기화
+    is_dropping = False
+    start_idx = None
+    
+    # 드랍시킬 구간을 기록할 리스트 초기화
+    drop_regions = []
+    
+    # 타겟 컬럼의 표준편차와 변화량에 대한 기준값 계산
+    std = df[target_col].std()
+    threshold = std * std_threshold
+    
+    # 전체 데이터에 대해 반복
+    for i in range(1, len(df)):
+        # 이전 값과의 차이를 계산
+        diff = abs(df[target_col][i] - df[target_col][i-1])
+        
+        # 감소 구간 탐색
+        if not is_dropping and diff / std <= rate_threshold:
+            start_idx = i - 1
+            is_dropping = True
+        elif is_dropping and diff / std > rate_threshold:
+            drop_regions.append((start_idx, i-1))
+            is_dropping = False
+    
+    # 드랍시킬 구간을 데이터프레임에서 제거
+    for start, end in drop_regions:
+        df = df.drop(df.index[start:end+1])
+    
+    return df
+'''
 
 def preprocessing3(train, test):
   train_x = train.drop(['DSL D-95'],axis=1)
@@ -118,6 +198,13 @@ def feature_selection(df):
   df = df[['PIC23106(Top P)', 'FIC23105(P/A RT Flow)', 'A+B','TI23118(D/O Liquid T)', 'TI23502(D/O Vapor T)']]
   return df
 
+
+def drop_day_count(train_x,test_x):
+  train_x.drop(['year','month','date','hour'],axis=1,inplace=True)
+  test_x.drop(['year','month','date','hour'],axis=1,inplace=True)
+  train_x.drop(['Unnamed: 0'],axis=1,inplace=True)
+  test_x.drop(['Unnamed: 0'],axis=1,inplace=True)
+  return train_x,test_x
 
 def log(df):
   col_list = df.columns
